@@ -75,7 +75,7 @@
   <center>
     <img src="LOGO SPD.png" alt="Logo SPD" width="200">
     <img src="realidadesparalelas.png" alt="Realidades Paralelas" width="200">
-	</center>
+  </center>
   <h1>Votá tu carroza favorita</h1>
 
   <div id="options-container"></div>
@@ -85,13 +85,28 @@
     <div id="results-container"></div>
   </div>
 
-  <script>
-    const OPTIONS = ['PRIMER AÑO', 'SEGUNDO AÑO', 'TERCER AÑO', 'CUARTO AÑO', 'QUINTO AÑO'];
-    const STORAGE_KEY = 'votos_simple';
-    const VOTO_KEY = 'yaVotoSimple';
+  <!-- Script principal -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-app.js";
+    import { getDatabase, ref, onValue, runTransaction } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-database.js";
 
-    // Cargar votos guardados o inicializar en cero
-    let votos = JSON.parse(localStorage.getItem(STORAGE_KEY)) || Array(OPTIONS.length).fill(0);
+    const firebaseConfig = {
+      apiKey: "AIzaSyDHJV1v4IH_Q6hR5A15J0WZClzSsXwjSxI",
+      authDomain: "contadorvotos-dd039.firebaseapp.com",
+      databaseURL: "https://contadorvotos-dd039-default-rtdb.firebaseio.com",
+      projectId: "contadorvotos-dd039",
+      storageBucket: "contadorvotos-dd039.firebasestorage.app",
+      messagingSenderId: "721491101319",
+      appId: "1:721491101319:web:31c423048340792cdf9a22",
+      measurementId: "G-ZSW70SS2Q7"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+
+    const OPTIONS = ['PRIMER AÑO', 'SEGUNDO AÑO', 'TERCER AÑO', 'CUARTO AÑO', 'QUINTO AÑO'];
+    const VOTO_KEY = 'yaVotoSimple';
+    let votos = Array(OPTIONS.length).fill(0);
     let yaVoto = localStorage.getItem(VOTO_KEY) === 'true';
 
     const optionsContainer = document.getElementById('options-container');
@@ -120,7 +135,6 @@
     function renderResults() {
       resultsContainer.innerHTML = '';
       const totalVotos = votos.reduce((a, b) => a + b, 0);
-
       OPTIONS.forEach((opt, idx) => {
         const row = document.createElement('div');
         row.className = 'result-row';
@@ -132,19 +146,25 @@
 
     function votar(indice) {
       if (yaVoto) return;
-      votos[indice]++;
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(votos));
+      const votoRef = ref(db, 'votos/' + indice);
+      runTransaction(votoRef, current => (current || 0) + 1);
       localStorage.setItem(VOTO_KEY, 'true');
       yaVoto = true;
-      alert('¡Gracias por votar!');
-      renderOptions();
-      renderResults();
     }
+
+    // Escuchar cambios en tiempo real
+    onValue(ref(db, 'votos'), snapshot => {
+      const data = snapshot.val() || {};
+      votos = OPTIONS.map((_, idx) => data[idx] || 0);
+      renderResults();
+      renderOptions();
+    });
 
     renderOptions();
     renderResults();
   </script>
 </body>
 </html>
+
 
 
