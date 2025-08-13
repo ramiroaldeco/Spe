@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Semana del estudiante</title>
+  <style>
+    body {
+      font-family: Zing Rust Base, sans-serif;
+      background: #f0f2f5;
+      margin: 0; padding: 20px;
+      display: flex; flex-direction: column; align-items: center;
+    }
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      width: 100%;
+      max-width: 900px;
+      margin-bottom: 20px;
+    }
+    header img {
+      height: 100px;
+    }
+    h1 {
+      margin-bottom: 20px;
+      color: #dc3626;
+    }
+    .option {
+      background: white;
+      border-radius: 8px;
+      padding: 15px 20px;
+      margin: 8px 0;
+      width: 300px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: 0 2px 8px rgb(0 0 0 / 0.1);
+    }
+    button {
+      background: #f32f78;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      padding: 8px 14px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+    button:disabled {
+      background: #ccc;
+      cursor: default;
+    }
+    .results {
+      margin-top: 30px;
+      width: 300px;
+      background: white;
+      border-radius: 8px;
+      padding: 15px;
+      box-shadow: 0 2px 8px rgb(0 0 0 / 0.1);
+    }
+    .results h2 {
+      margin-top: 0;
+      margin-bottom: 15px;
+      color: #f32f78;
+    }
+    .result-row {
+      display: flex;
+      justify-content: space-between;
+      margin: 6px 0;
+    }
+  </style>
+</head>
+<body>
+
+  <center>
+    <img src="LOGO SPD.png" alt="Logo SPD" width="200">
+    <img src="realidades.png" alt="Realidades Paralelas" width="200">
+	</center>
+  <h1>Votá tu carroza favorita</h1>
+
+  <div id="options-container"></div>
+
+  <div class="results">
+    <h2>Resultados actuales</h2>
+    <div id="results-container"></div>
+  </div>
+
+  <script>
+    const OPTIONS = ['PRIMER AÑO', 'SEGUNDO AÑO', 'TERCER AÑO', 'CUARTO AÑO', 'QUINTO AÑO'];
+    const STORAGE_KEY = 'votos_simple';
+    const VOTO_KEY = 'yaVotoSimple';
+
+    // Cargar votos guardados o inicializar en cero
+    let votos = JSON.parse(localStorage.getItem(STORAGE_KEY)) || Array(OPTIONS.length).fill(0);
+    let yaVoto = localStorage.getItem(VOTO_KEY) === 'true';
+
+    const optionsContainer = document.getElementById('options-container');
+    const resultsContainer = document.getElementById('results-container');
+
+    function renderOptions() {
+      optionsContainer.innerHTML = '';
+      OPTIONS.forEach((opt, idx) => {
+        const div = document.createElement('div');
+        div.className = 'option';
+
+        const label = document.createElement('div');
+        label.textContent = opt;
+
+        const btn = document.createElement('button');
+        btn.textContent = 'Votar';
+        btn.disabled = yaVoto;
+        btn.addEventListener('click', () => votar(idx));
+
+        div.appendChild(label);
+        div.appendChild(btn);
+        optionsContainer.appendChild(div);
+      });
+    }
+
+    function renderResults() {
+      resultsContainer.innerHTML = '';
+      const totalVotos = votos.reduce((a, b) => a + b, 0);
+
+      OPTIONS.forEach((opt, idx) => {
+        const row = document.createElement('div');
+        row.className = 'result-row';
+        let porcentaje = totalVotos > 0 ? ((votos[idx] / totalVotos) * 100).toFixed(1) : 0;
+        row.innerHTML = `<div>${opt}</div><div>${porcentaje}% (${votos[idx]} votos)</div>`;
+        resultsContainer.appendChild(row);
+      });
+    }
+
+    function votar(indice) {
+      if (yaVoto) return;
+      votos[indice]++;
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(votos));
+      localStorage.setItem(VOTO_KEY, 'true');
+      yaVoto = true;
+      alert('¡Gracias por votar!');
+      renderOptions();
+      renderResults();
+    }
+
+    renderOptions();
+    renderResults();
+  </script>
+</body>
+</html>
