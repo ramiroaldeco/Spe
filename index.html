@@ -1,167 +1,135 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Semana del estudiante</title>
+  <title>Votación de Carrozas</title>
   <style>
-    body {
-      font-family: Zing Rust Base, sans-serif;
-      background: #f0f2f5;
-      margin: 0; padding: 20px;
-      display: flex; flex-direction: column; align-items: center;
-    }
-    header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      width: 100%;
-      max-width: 900px;
-      margin-bottom: 20px;
-    }
-    header img {
-      height: 100px;
-    }
-    h1 {
-      margin-bottom: 20px;
-      color: #dc3626;
-    }
-    .option {
-      background: white;
-      border-radius: 8px;
-      padding: 15px 20px;
-      margin: 8px 0;
-      width: 300px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      box-shadow: 0 2px 8px rgb(0 0 0 / 0.1);
-    }
-    button {
-      background: #f32f78;
-      color: white;
-      border: none;
-      border-radius: 6px;
-      padding: 8px 14px;
-      cursor: pointer;
-      font-size: 14px;
-    }
-    button:disabled {
-      background: #ccc;
-      cursor: default;
-    }
-    .results {
-      margin-top: 30px;
-      width: 300px;
-      background: white;
-      border-radius: 8px;
-      padding: 15px;
-      box-shadow: 0 2px 8px rgb(0 0 0 / 0.1);
-    }
-    .results h2 {
-      margin-top: 0;
-      margin-bottom: 15px;
-      color: #f32f78;
-    }
-    .result-row {
-      display: flex;
-      justify-content: space-between;
-      margin: 6px 0;
-    }
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin:0; background:#f7f7f8; color:#222; }
+    header { background:#111; color:#fff; padding:16px; text-align:center; }
+    main { max-width:720px; margin:24px auto; background:#fff; border-radius:12px; padding:20px; box-shadow: 0 10px 30px rgba(0,0,0,.07); }
+    h1 { margin:0 0 8px }
+    .options { display:grid; gap:12px; margin:16px 0; }
+    .card { border:1px solid #eee; border-radius:10px; padding:12px; display:flex; justify-content:space-between; align-items:center; }
+    button { padding:10px 14px; border:none; border-radius:8px; background:#007bff; color:#fff; font-weight:600; cursor:pointer; }
+    button:disabled { opacity:.5; cursor:not-allowed; }
+    .bar { height:10px; background:#e9ecef; border-radius:999px; overflow:hidden; }
+    .fill { height:100%; width:0%; background:#007bff; transition:width .4s ease; }
+    .row { display:flex; justify-content:space-between; gap:10px; align-items:center;}
+    .muted { color:#666; font-size:.9rem }
+    .ok { color:#0a7b0a; font-weight:600 }
+    .err { color:#b00020; font-weight:600 }
   </style>
 </head>
 <body>
+  <header>
+    <h1>Votación de Carrozas</h1>
+    <div class="muted">Escaneá el QR, elegí tu favorita. 1 voto por persona.</div>
+  </header>
 
-  <center>
-    <img src="LOGO SPD.png" alt="Logo SPD" width="200">
-    <img src="realidadesparalelas.png" alt="Realidades Paralelas" width="200">
-  </center>
-  <h1>Votá tu carroza favorita</h1>
+  <main>
+    <div id="status" class="muted">Cargando…</div>
+    <div class="options" id="options"></div>
+    <div id="results"></div>
+  </main>
 
-  <div id="options-container"></div>
+  <script>
+    const $options = document.getElementById('options');
+    const $status  = document.getElementById('status');
 
-  <div class="results">
-    <h2>Resultados actuales</h2>
-    <div id="results-container"></div>
-  </div>
+    let options = [];
+    let yaVote = false;
 
-  <!-- Script principal -->
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-app.js";
-    import { getDatabase, ref, onValue, runTransaction } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-database.js";
-
-    const firebaseConfig = {
-      apiKey: "AIzaSyDHJV1v4IH_Q6hR5A15J0WZClzSsXwjSxI",
-      authDomain: "contadorvotos-dd039.firebaseapp.com",
-      databaseURL: "https://contadorvotos-dd039-default-rtdb.firebaseio.com",
-      projectId: "contadorvotos-dd039",
-      storageBucket: "contadorvotos-dd039.firebasestorage.app",
-      messagingSenderId: "721491101319",
-      appId: "1:721491101319:web:31c423048340792cdf9a22",
-      measurementId: "G-ZSW70SS2Q7"
-    };
-
-    const app = initializeApp(firebaseConfig);
-    const db = getDatabase(app);
-
-    const OPTIONS = ['PRIMER AÑO', 'SEGUNDO AÑO', 'TERCER AÑO', 'CUARTO AÑO', 'QUINTO AÑO'];
-    const VOTO_KEY = 'yaVotoSimple';
-    let votos = Array(OPTIONS.length).fill(0);
-    let yaVoto = localStorage.getItem(VOTO_KEY) === 'true';
-
-    const optionsContainer = document.getElementById('options-container');
-    const resultsContainer = document.getElementById('results-container');
+    async function fetchJSON(url, opts) {
+      const res = await fetch(url, { credentials: 'include', ...opts });
+      if (!res.ok) throw new Error((await res.json().catch(()=>({}))).error || 'Error');
+      return res.json();
+    }
 
     function renderOptions() {
-      optionsContainer.innerHTML = '';
-      OPTIONS.forEach((opt, idx) => {
-        const div = document.createElement('div');
-        div.className = 'option';
-
-        const label = document.createElement('div');
-        label.textContent = opt;
-
+      $options.innerHTML = '';
+      for (const o of options) {
+        const card = document.createElement('div');
+        card.className = 'card';
         const btn = document.createElement('button');
         btn.textContent = 'Votar';
-        btn.disabled = yaVoto;
-        btn.addEventListener('click', () => votar(idx));
+        btn.disabled = yaVote;
+        btn.onclick = async () => {
+          btn.disabled = true;
+          try {
+            await fetchJSON('/api/vote', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ optionId: o.id })
+            });
+            yaVote = true;
+            setStatus('¡Voto registrado! ✅', 'ok');
+            // deshabilitar todos los botones
+            document.querySelectorAll('button').forEach(b => b.disabled = true);
+          } catch (e) {
+            setStatus(e.message || 'No se pudo votar', 'err');
+            btn.disabled = yaVote;
+          }
+        };
 
-        div.appendChild(label);
-        div.appendChild(btn);
-        optionsContainer.appendChild(div);
-      });
+        const label = document.createElement('div');
+        label.textContent = o.label;
+
+        card.appendChild(label);
+        card.appendChild(btn);
+        $options.appendChild(card);
+      }
     }
 
-    function renderResults() {
-      resultsContainer.innerHTML = '';
-      const totalVotos = votos.reduce((a, b) => a + b, 0);
-      OPTIONS.forEach((opt, idx) => {
+    function setStatus(text, cls='muted') {
+      $status.className = cls;
+      $status.textContent = text;
+    }
+
+    function renderResults(counts) {
+      const total = counts.reduce((a,c) => a + (c.count||0), 0);
+      const container = document.getElementById('results');
+      container.innerHTML = '';
+      counts.forEach(c => {
+        const pct = total ? Math.round((c.count / total) * 100) : 0;
         const row = document.createElement('div');
-        row.className = 'result-row';
-        let porcentaje = totalVotos > 0 ? ((votos[idx] / totalVotos) * 100).toFixed(1) : 0;
-        row.innerHTML = `<div>${opt}</div><div>${porcentaje}% (${votos[idx]} votos)</div>`;
-        resultsContainer.appendChild(row);
+        row.style.marginTop = '10px';
+        row.innerHTML = `
+          <div class="row">
+            <div><strong>${c.label}</strong></div>
+            <div class="muted">${c.count} voto(s) — <strong>${pct}%</strong></div>
+          </div>
+          <div class="bar"><div class="fill" style="width:${pct}%;"></div></div>
+        `;
+        container.appendChild(row);
       });
+      if (total === 0) setStatus('Aún no hay votos. ¡Sé el primero!', 'muted');
+      else if (!yaVote) setStatus('Elegí tu carroza y votá.', 'muted');
     }
 
-    async function votar(indice) {
-      if (yaVoto) return;
-      const votoRef = ref(db, 'votos/' + indice);
-      await runTransaction(votoRef, current => (current || 0) + 1);
-      localStorage.setItem(VOTO_KEY, 'true');
-      yaVoto = true;
-      renderOptions(); // refrescar botones deshabilitados
+    async function init() {
+      try {
+        options = await fetchJSON('/api/options');
+        renderOptions();
+        const counts = await fetchJSON('/api/results');
+        renderResults(counts);
+
+        // Conectarse al stream SSE para tiempo real
+        const es = new EventSource('/events', { withCredentials: true });
+        es.onmessage = (ev) => {
+          try {
+            const { type, payload } = JSON.parse(ev.data);
+            if (type === 'counts') renderResults(payload);
+          } catch {}
+        };
+        es.onerror = () => setStatus('Conexión en tiempo real inestable…', 'muted');
+
+        setStatus('Conectado', 'muted');
+      } catch (e) {
+        setStatus('No se pudo cargar la votación', 'err');
+      }
     }
-
-    // Escuchar cambios en tiempo real
-    onValue(ref(db, 'votos'), snapshot => {
-      const data = snapshot.val() || {};
-      votos = OPTIONS.map((_, idx) => data[idx] || 0);
-      renderResults();
-    });
-
-    renderOptions();
-    renderResults();
+    init();
   </script>
 </body>
 </html>
